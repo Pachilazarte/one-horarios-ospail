@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OSPAIL — Informes</title>
+  <link rel="icon" type="image/png" href="" id="fav"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/brand.css"/>
+  <link rel="stylesheet" href="css/main.css"/>
+</head>
+<body>
+<div class="bg-layer" aria-hidden="true"></div>
+<div class="app-wrap">
+
+<header class="app-header no-print">
+  <div class="app-header__inner">
+    <div class="app-header__brand">
+      <div class="brand-mark" id="hdrMark"></div>
+      <div>
+        <div class="brand-name" id="hdrNombre">Control de <span class="brand-gc">Horarios</span></div>
+        <span class="brand-sub">Generador de informes</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:7px;">
+      <button onclick="window.history.back()" class="btn btn-ghost" style="font-size:12px;padding:6px 12px;">← Volver</button>
+    </div>
+  </div>
+</header>
+
+<main style="max-width:1000px;margin:0 auto;padding:20px 16px 80px;">
+
+  <!-- Filtros -->
+  <div class="glass" style="padding:20px;margin-bottom:20px;">
+    <h2 style="font-size:18px;font-weight:800;margin-bottom:16px;">🔍 Configurar <span class="brand-gc">Informe</span></h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">
+      <div>
+        <label class="lbl">Período</label>
+        <select class="inp" id="iPer" onchange="onPerChange()">
+          <option value="hoy">Hoy</option><option value="ayer">Ayer</option>
+          <option value="semana" selected>Esta semana</option><option value="semana_ant">Semana anterior</option>
+          <option value="mes">Este mes</option><option value="mes_ant">Mes anterior</option>
+          <option value="anio">Este año</option><option value="dia_especifico">Día específico</option>
+          <option value="todos">Todos</option>
+        </select>
+      </div>
+      <div id="diaEspGrp" style="display:none;">
+        <label class="lbl">Fecha</label>
+        <input class="inp" type="date" id="iDiaEsp"/>
+      </div>
+      <div>
+        <label class="lbl">Área</label>
+        <select class="inp" id="iArea"><option value="">Todas las áreas</option></select>
+      </div>
+      <div>
+        <label class="lbl">Persona (opcional)</label>
+        <input class="inp" type="text" id="iPers" placeholder="Filtrar por nombre..."/>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="generarInforme()"><span id="iIco">📊</span>&nbsp;<span id="iTxt">Generar Informe</span></button>
+      <button class="btn btn-gold" onclick="exportarCSV()" id="btnICSV" style="display:none;">⬇ CSV</button>
+      <button class="btn btn-print" onclick="abrirPDF()" id="btnIPDF" style="display:none;">🖨 Abrir PDF</button>
+    </div>
+  </div>
+
+  <!-- Estado vacío -->
+  <div id="stateEmpty" style="text-align:center;padding:60px 20px;">
+    <div style="font-size:48px;margin-bottom:12px;">📊</div>
+    <div style="font-size:18px;font-weight:800;margin-bottom:6px;">Configurá tu informe</div>
+    <div style="color:rgba(198,201,215,.45);font-size:13px;">Seleccioná período y área, luego hacé clic en Generar.</div>
+  </div>
+
+  <!-- Loading -->
+  <div id="stateLoading" style="display:none;text-align:center;padding:60px 20px;">
+    <div class="sp sp-lg" style="margin:0 auto 16px;"></div>
+    <div id="loadMsg" style="color:rgba(198,201,215,.5);font-size:13px;">Cargando datos...</div>
+  </div>
+
+  <!-- Resultado -->
+  <div id="stateReport" style="display:none;">
+
+    <!-- KPIs -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px;">
+      <div class="stat-card-lg"><div style="font-size:10px;color:rgba(198,201,215,.5);text-transform:uppercase;letter-spacing:.06em;">Registros</div><div style="font-size:30px;font-weight:800;margin-top:4px;" class="brand-gc" id="rKT">—</div></div>
+      <div class="stat-card-lg"><div style="font-size:10px;color:rgba(198,201,215,.5);text-transform:uppercase;letter-spacing:.06em;">Personas</div><div style="font-size:30px;font-weight:800;margin-top:4px;color:#a78bfa;" id="rKP">—</div></div>
+      <div class="stat-card-lg"><div style="font-size:10px;color:rgba(198,201,215,.5);text-transform:uppercase;letter-spacing:.06em;">Puntualidad</div><div style="font-size:30px;font-weight:800;margin-top:4px;" id="rKPct">—</div></div>
+      <div class="stat-card-lg"><div style="font-size:10px;color:rgba(198,201,215,.5);text-transform:uppercase;letter-spacing:.06em;">Prom. tardanza</div><div style="font-size:30px;font-weight:800;margin-top:4px;" id="rKTard">—</div></div>
+      <div class="stat-card-lg"><div style="font-size:10px;color:rgba(198,201,215,.5);text-transform:uppercase;letter-spacing:.06em;">Prom. jornada</div><div style="font-size:30px;font-weight:800;margin-top:4px;" class="brand-gc" id="rKHs">—</div></div>
+    </div>
+
+    <!-- Tops -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px;margin-bottom:16px;">
+      <div class="glass" style="padding:17px 19px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:13px;color:rgba(198,201,215,.8);">⚠️ Top tardanzas</div>
+        <div id="rTopTard" style="display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+      <div class="glass" style="padding:17px 19px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:13px;color:rgba(198,201,215,.8);">⏰ Top horas extra</div>
+        <div id="rTopExtra" style="display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+      <div class="glass" style="padding:17px 19px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:13px;color:rgba(198,201,215,.8);">🏢 Por área</div>
+        <div style="overflow-x:auto;"><table class="tbl" style="font-size:12px;"><thead><tr><th>Área</th><th>Regs</th><th>Punt%</th><th>Prom. tard</th></tr></thead><tbody id="rTbArea"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- Tabla registros -->
+    <div class="glass tbl-wrap" style="margin-bottom:12px;">
+      <div style="padding:13px 16px;border-bottom:1px solid rgba(198,201,215,.08);display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-weight:700;font-size:14px;">📋 Registros del período</span>
+        <span id="rCntLabel" style="font-size:12px;color:rgba(198,201,215,.4);"></span>
+      </div>
+      <table class="tbl">
+        <thead><tr><th>#</th><th>Fecha</th><th>Área</th><th>Nombre</th><th>Horario plan.</th><th>Entrada</th><th>Salida</th><th>Hs.</th><th>Tardanza</th></tr></thead>
+        <tbody id="rTbRegs"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/marca.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/auth.js"></script>
+<script>
+let _rows = [], _stats = null;
+
+function showState(s){
+  ['Empty','Loading','Report'].forEach(x=>document.getElementById('state'+x).style.display=s==='state'+x?'':'none');
+}
+
+function onPerChange(){
+  const v=document.getElementById('iPer').value;
+  document.getElementById('diaEspGrp').style.display=v==='dia_especifico'?'':'none';
+}
+
+function getRango(per){
+  const hoy=today();
+  const lunes=getLunes(hoy,0), sab=getSab(lunes);
+  switch(per){
+    case 'hoy':         return{desde:hoy,hasta:hoy};
+    case 'ayer':        {const d=new Date(hoy+'T12:00:00');d.setDate(d.getDate()-1);const s=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;return{desde:s,hasta:s};}
+    case 'semana':      return{desde:lunes,hasta:sab};
+    case 'semana_ant':  {const l=getLunes(hoy,-1);return{desde:l,hasta:getSab(l)};}
+    case 'mes':         {const d=new Date();return{desde:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`,hasta:hoy};}
+    case 'mes_ant':     {const d=new Date();d.setMonth(d.getMonth()-1);const y=d.getFullYear(),m=d.getMonth()+1,last=new Date(y,m,0).getDate();return{desde:`${y}-${String(m).padStart(2,'0')}-01`,hasta:`${y}-${String(m).padStart(2,'0')}-${last}`};}
+    case 'anio':        return{desde:`${new Date().getFullYear()}-01-01`,hasta:hoy};
+    case 'dia_especifico':{const v=document.getElementById('iDiaEsp').value||hoy;return{desde:v,hasta:v};}
+    default:            return{desde:'2020-01-01',hasta:'2099-12-31'};
+  }
+}
+function getSab(l){const d=new Date(l+'T12:00:00');d.setDate(d.getDate()+6);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+
+async function generarInforme(){
+  const per=document.getElementById('iPer').value;
+  const area=document.getElementById('iArea').value;
+  const pers=document.getElementById('iPers').value.trim().toLowerCase();
+  const range=getRango(per);
+
+  showState('stateLoading');
+  document.getElementById('iIco').textContent='⏳'; document.getElementById('iTxt').textContent='Cargando...';
+
+  let q=SB.from('registros_asistencia')
+    .select('*, empleados(nombre,apellido,rol), areas(nombre)')
+    .gte('fecha',range.desde).lte('fecha',range.hasta).order('fecha',{ascending:false});
+  if(area) q=q.eq('areas.nombre',area);
+
+  const{data,error}=await q;
+  document.getElementById('iIco').textContent='📊'; document.getElementById('iTxt').textContent='Generar Informe';
+
+  if(error){showState('stateEmpty');showToast('Error: '+error.message,'err');return;}
+
+  _rows=(data||[]).map(r=>({
+    ...r,
+    nombre:   r.empleados?`${r.empleados.apellido}, ${r.empleados.nombre}`:'—',
+    rol:      r.empleados?.rol||'',
+    area:     r.areas?.nombre||'—',
+    hora_entrada: r.hora_entrada?new Date(r.hora_entrada).toTimeString().slice(0,5):null,
+    hora_salida:  r.hora_salida?new Date(r.hora_salida).toTimeString().slice(0,5):null,
+  })).filter(r=>!pers||r.nombre.toLowerCase().includes(pers));
+
+  _stats=calcStats(_rows);
+  renderResultado();
+  showState('stateReport');
+  document.getElementById('btnICSV').style.display='';
+  document.getElementById('btnIPDF').style.display='';
+}
+
+function calcStats(rows){
+  const conPlan=rows.filter(r=>r.turno&&r.hora_entrada&&!['Flex','Guardia'].includes(r.turno)&&r.turno.includes(':'));
+  const diffs=conPlan.map(r=>{const pe=r.turno.split('→')[0].trim();return pe.match(/^\d{2}:\d{2}$/)?calcTard(pe,r.hora_entrada):null;}).filter(d=>d!==null);
+  const punt=diffs.filter(d=>d<=0).length, tarde=diffs.filter(d=>d>0).length;
+  const promT=diffs.length?Math.round(diffs.reduce((a,b)=>a+b,0)/diffs.length):0;
+  const conHs=rows.filter(r=>r.hora_entrada&&r.hora_salida);
+  const totHs=conHs.reduce((acc,r)=>acc+(calcHs(r.hora_entrada,r.hora_salida)||0),0);
+  const pct=Math.round(punt/Math.max(punt+tarde,1)*100);
+
+  // top tard
+  const tm={};
+  conPlan.filter(r=>{const d=calcTard(r.turno.split('→')[0].trim(),r.hora_entrada);return d!==null&&d>0;}).forEach(r=>{const d=calcTard(r.turno.split('→')[0].trim(),r.hora_entrada);if(!tm[r.nombre])tm[r.nombre]={nombre:r.nombre,area:r.area,total:0,v:0};tm[r.nombre].total+=d;tm[r.nombre].v++;});
+  const topTard=Object.values(tm).sort((a,b)=>b.total-a.total).slice(0,8);
+
+  // top extra
+  const em={};
+  rows.filter(r=>r.turno&&r.hora_salida&&r.turno.includes('→')&&!['Flex','Guardia'].includes(r.turno)).forEach(r=>{const ps=r.turno.split('→');if(ps.length<2)return;const planS=ps[1].trim().slice(0,5);if(!planS.match(/^\d{2}:\d{2}$/))return;const[ph,pm]=planS.split(':').map(Number);const[rh,rm]=r.hora_salida.split(':').map(Number);const ex=(rh*60+rm)-(ph*60+pm);if(!ex||ex<=0)return;if(!em[r.nombre])em[r.nombre]={nombre:r.nombre,area:r.area,totalMin:0,v:0};em[r.nombre].totalMin+=ex;em[r.nombre].v++;});
+  const topExtra=Object.values(em).sort((a,b)=>b.totalMin-a.totalMin).slice(0,8);
+
+  // por área
+  const areas=[...new Set(rows.map(r=>r.area))];
+  const byArea=areas.map(a=>{
+    const ar=rows.filter(r=>r.area===a);
+    const ds=ar.filter(r=>r.turno&&r.hora_entrada&&!['Flex','Guardia'].includes(r.turno)&&r.turno.includes(':')).map(r=>{const pe=r.turno.split('→')[0].trim();return pe.match(/^\d{2}:\d{2}$/)?calcTard(pe,r.hora_entrada):null;}).filter(d=>d!==null);
+    const p=ds.filter(d=>d<=0).length;
+    const prom=ds.length?Math.round(ds.reduce((x,y)=>x+y,0)/ds.length):null;
+    const pct2=ds.length?Math.round(p/ds.length*100):null;
+    return{area:a,regs:ar.length,pct:pct2,prom};
+  });
+
+  return{total:rows.length,personas:new Set(rows.map(r=>r.nombre)).size,punt,tarde,pct,promT,promHs:conHs.length?totHs/conHs.length:0,topTard,topExtra,byArea};
+}
+
+function renderResultado(){
+  const s=_stats;
+  const pctColor=s.pct>=80?'var(--color-success-text)':s.pct>=60?'#e4c76a':'var(--color-danger-text)';
+  const set=(id,v,c)=>{const el=document.getElementById(id);if(el){el.textContent=v;if(c)el.style.color=c;}};
+
+  set('rKT', s.total);
+  set('rKP', s.personas, '#a78bfa');
+  set('rKPct', s.pct+'%', pctColor);
+  set('rKTard', (s.promT>0?'+':'')+s.promT+'m', s.promT>5?'var(--color-danger-text)':'var(--color-success-text)');
+  set('rKHs', fmtHs(s.promHs));
+  document.getElementById('rCntLabel').textContent=`${_rows.length} registros`;
+
+  // Top tard
+  const ttEl=document.getElementById('rTopTard');
+  if(s.topTard.length){const max=s.topTard[0].total; ttEl.innerHTML=s.topTard.map((p,i)=>`<div style="margin-bottom:6px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px;"><span style="font-weight:700;">${i+1}. ${p.nombre}</span><span class="badge badge-red">+${p.total}m</span></div><div style="height:4px;background:rgba(198,201,215,.1);border-radius:2px;"><div style="height:100%;width:${Math.round(p.total/max*100)}%;background:rgba(239,68,68,.7);border-radius:2px;"></div></div><div style="font-size:10px;color:rgba(198,201,215,.35);">${p.v}x · ${p.area.split(' ')[0]}</div></div>`).join('');}
+  else ttEl.innerHTML='<div style="color:rgba(198,201,215,.35);font-size:12px;">Sin tardanzas ✓</div>';
+
+  // Top extra
+  const teEl=document.getElementById('rTopExtra');
+  if(s.topExtra.length){const max=s.topExtra[0].totalMin; teEl.innerHTML=s.topExtra.map((p,i)=>`<div style="margin-bottom:6px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px;"><span style="font-weight:700;">${i+1}. ${p.nombre}</span><span class="badge badge-gold">${fmtHs(p.totalMin/60)}</span></div><div style="height:4px;background:rgba(198,201,215,.1);border-radius:2px;"><div style="height:100%;width:${Math.round(p.totalMin/max*100)}%;background:rgba(228,199,106,.7);border-radius:2px;"></div></div><div style="font-size:10px;color:rgba(198,201,215,.35);">${p.v} jornadas · ${p.area.split(' ')[0]}</div></div>`).join('');}
+  else teEl.innerHTML='<div style="color:rgba(198,201,215,.35);font-size:12px;">Sin horas extra</div>';
+
+  // Por área
+  const taEl=document.getElementById('rTbArea');
+  taEl.innerHTML=s.byArea.map(a=>{const col=areaColor(a.area);return`<tr><td><span style="color:${col};font-weight:800;font-size:11px;">${a.area.split(' ')[0]}</span></td><td>${a.regs}</td><td style="color:${a.pct>=80?'var(--color-success-text)':a.pct>=60?'#e4c76a':'var(--color-danger-text)'};">${a.pct!==null?a.pct+'%':'—'}</td><td style="color:${a.prom>0?'var(--color-danger-text)':'var(--color-success-text)'};">${a.prom!==null?(a.prom>0?'+'+a.prom+'m':'✓'):'—'}</td></tr>`;}).join('');
+
+  // Tabla registros
+  const trEl=document.getElementById('rTbRegs');
+  trEl.innerHTML=_rows.map((r,i)=>{
+    const hs=calcHs(r.hora_entrada,r.hora_salida);
+    const t=r.turno||'';
+    const eF=t==='Flex',eG=t==='Guardia';
+    let diff=null;
+    if(!eF&&!eG&&t.includes(':')&&r.hora_entrada){const pe=t.split('→')[0].trim();if(pe.match(/^\d{2}:\d{2}$/))diff=calcTard(pe,r.hora_entrada);}
+    const col=areaColor(r.area);
+    let tb;
+    if(eF) tb='<span class="badge badge-purple">🔄 Flex</span>';
+    else if(eG) tb='<span class="badge badge-gold">🛡 Guardia</span>';
+    else tb=tardBadge(diff);
+    return`<tr><td style="color:rgba(198,201,215,.3);">${i+1}</td><td style="white-space:nowrap;">${fmtDate(r.fecha)}</td><td><span style="color:${col};font-weight:800;font-size:11px;">${r.area.split(' ')[0]}</span></td><td style="font-weight:700;">${r.nombre}</td><td style="color:rgba(198,201,215,.55);font-size:12px;">${t||'—'}</td><td style="font-weight:700;">${r.hora_entrada||'—'}</td><td style="color:rgba(198,201,215,.6);">${r.hora_salida||'—'}</td><td><span class="badge badge-c1">${hs!==null?fmtHs(hs):'—'}</span></td><td>${tb}</td></tr>`;
+  }).join('');
+}
+
+function exportarCSV(){
+  if(!_rows.length){showToast('Sin datos','err');return;}
+  const cols=['Fecha','Área','Nombre','Rol','Turno planificado','Entrada','Salida','Hs trabajadas','Min tardanza','Puntual','Estado','Obs'];
+  const lines=[cols.join(',')];
+  _rows.forEach(r=>{
+    const hs=calcHs(r.hora_entrada,r.hora_salida);
+    const t=r.turno||'',eF=t==='Flex',eG=t==='Guardia';
+    let diff=null;
+    if(!eF&&!eG&&t.includes(':')&&r.hora_entrada){const pe=t.split('→')[0].trim();if(pe.match(/^\d{2}:\d{2}$/))diff=calcTard(pe,r.hora_entrada);}
+    const punt=eF||eG?'N/A':(diff!==null?(diff<=0?'SÍ':'NO'):'');
+    lines.push([`"${r.fecha}"`,`"${r.area}"`,`"${r.nombre}"`,`"${r.rol}"`,`"${t}"`,`"${r.hora_entrada||''}"`,`"${r.hora_salida||''}"`,hs!==null?hs.toFixed(2):'',diff!==null?diff:'',punt,`"${r.estado||''}"`,`"${(r.observaciones||'').replace(/"/g,"'")}"`].join(','));
+  });
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+lines.join('\n')],{type:'text/csv;charset=utf-8;'}));a.download=`informe_${today()}.csv`;a.click();
+}
+
+function abrirPDF(){
+  if(!_rows.length) return;
+  const per=document.getElementById('iPer').selectedOptions[0].textContent;
+  const emp=MARCA.empresas[sessionStorage.getItem('empresaActiva')]||{nombre:'',colores:{primario:'#F26513'}};
+  const s=_stats;
+  const pctColor=s.pct>=80?'#22c55e':s.pct>=60?'#f59e0b':'#ef4444';
+
+  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
+  <title>Informe ${emp.nombre} · ${per}</title>
+  <style>*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  body{font-family:Arial,Helvetica,sans-serif;background:#fff;color:#111;font-size:13px;}
+  .cover{background:#0d1426;color:#fff;padding:48px;min-height:200px;}
+  .cover-eyebrow{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${emp.colores.primario};margin-bottom:10px;}
+  .cover-title{font-size:44px;font-weight:900;line-height:.9;margin-bottom:8px;}
+  .cover-title em{color:${emp.colores.primario};font-style:normal;}
+  .cover-sub{font-size:12px;color:rgba(255,255,255,.5);margin-bottom:24px;}
+  .cover-pills{display:flex;gap:8px;flex-wrap:wrap;}
+  .cpill{padding:5px 14px;border-radius:999px;font-size:11px;font-weight:700;}
+  .cpill-p{background:${emp.colores.primario}33;border:1px solid ${emp.colores.primario}66;color:${emp.colores.primario};}
+  .cpill-g{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.6);}
+  .cover-kpis{display:flex;gap:14px;margin-top:24px;flex-wrap:wrap;}
+  .ckpi{text-align:center;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.11);border-radius:12px;padding:14px 20px;}
+  .ckpi-val{font-size:28px;font-weight:800;}
+  .ckpi-lbl{font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;margin-top:3px;}
+  .sec{padding:32px 48px;border-bottom:1px solid #f0f0f5;}
+  .sec:last-child{border-bottom:none;}
+  .sec-title{font-size:17px;font-weight:800;margin-bottom:14px;color:#0f172a;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  th{padding:8px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#94a3b8;border-bottom:2px solid #f1f5f9;}
+  td{padding:8px 10px;border-bottom:1px solid #f7f7f9;vertical-align:middle;}
+  @media print{.sec{page-break-inside:avoid;}.cover{page-break-after:always;}}
+  </style></head><body>
+  <div class="cover">
+    <div class="cover-eyebrow">${emp.nombreCompleto||emp.nombre} · Sistema de Gestión de Asistencia</div>
+    <div class="cover-title">Informe de<br><em>Asistencia</em></div>
+    <div class="cover-sub">Puntualidad · Jornadas · Horas extra · Desempeño por área</div>
+    <div class="cover-pills">
+      <span class="cpill cpill-p">📅 ${per}</span>
+      ${document.getElementById('iArea').value?`<span class="cpill cpill-g">${document.getElementById('iArea').value}</span>`:'<span class="cpill cpill-g">Todas las áreas</span>'}
+    </div>
+    <div class="cover-kpis">
+      <div class="ckpi"><div class="ckpi-val" style="color:${emp.colores.primario};">${s.total}</div><div class="ckpi-lbl">Marcaciones</div></div>
+      <div class="ckpi"><div class="ckpi-val" style="color:#a78bfa;">${s.personas}</div><div class="ckpi-lbl">Personas</div></div>
+      <div class="ckpi"><div class="ckpi-val" style="color:${pctColor};">${s.pct}%</div><div class="ckpi-lbl">Puntualidad</div></div>
+      <div class="ckpi"><div class="ckpi-val" style="color:#60a5fa;">${fmtHs(s.promHs)}</div><div class="ckpi-lbl">Prom. Jornada</div></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">🏢 Desempeño por Área</div>
+    <table><thead><tr><th>Área</th><th>Registros</th><th>Puntualidad</th><th>Prom. tardanza</th></tr></thead>
+    <tbody>${s.byArea.map(a=>`<tr><td style="font-weight:700;">${a.area}</td><td>${a.regs}</td><td style="color:${a.pct>=80?'#22c55e':a.pct>=60?'#f59e0b':'#ef4444'};font-weight:700;">${a.pct!==null?a.pct+'%':'—'}</td><td style="color:${a.prom>0?'#ef4444':'#22c55e'};font-weight:700;">${a.prom!==null?(a.prom>0?'+'+a.prom+'m':'✓'):'—'}</td></tr>`).join('')}</tbody>
+    </table>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">⚠️ Top Tardanzas</div>
+    <table><thead><tr><th>#</th><th>Nombre</th><th>Área</th><th>Total</th><th>Ocurrencias</th></tr></thead>
+    <tbody>${s.topTard.length?s.topTard.map((p,i)=>`<tr><td style="color:#999;">${i+1}</td><td style="font-weight:700;">${p.nombre}</td><td style="color:#666;">${p.area}</td><td style="color:#ef4444;font-weight:700;">+${p.total}m</td><td style="color:#999;">${p.v}x</td></tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:#bbb;padding:20px;">Sin tardanzas en el período ✓</td></tr>'}</tbody>
+    </table>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">📋 Detalle de Registros</div>
+    <table><thead><tr><th>Fecha</th><th>Área</th><th>Nombre</th><th>Turno planificado</th><th>Entrada</th><th>Salida</th><th>Hs.</th><th>Tardanza</th></tr></thead>
+    <tbody>${_rows.slice(0,100).map(r=>{const hs=calcHs(r.hora_entrada,r.hora_salida);const t=r.turno||'';const eF=t==='Flex',eG=t==='Guardia';let diff=null;if(!eF&&!eG&&t.includes(':')&&r.hora_entrada){const pe=t.split('→')[0].trim();if(pe.match(/^\d{2}:\d{2}$/))diff=calcTard(pe,r.hora_entrada);}const tColor=diff===null?'#999':diff<=0?'#22c55e':diff<=5?'#f59e0b':'#ef4444';const tTxt=eF?'Flex':eG?'Guardia':diff===null?'—':diff<=0?`✓ Puntual`:`+${diff}m`;return`<tr><td style="white-space:nowrap;">${fmtDate(r.fecha)}</td><td style="font-size:11px;color:#555;">${r.area}</td><td style="font-weight:700;">${r.nombre}</td><td style="font-size:11px;color:#777;">${t||'—'}</td><td style="font-family:monospace;">${r.hora_entrada||'—'}</td><td style="font-family:monospace;color:#777;">${r.hora_salida||'—'}</td><td>${hs!==null?fmtHs(hs):'—'}</td><td style="color:${tColor};font-weight:700;">${tTxt}</td></tr>`;}).join('')}</tbody>
+    </table>
+    ${_rows.length>100?`<p style="padding:10px;font-size:11px;color:#999;">Mostrando 100 de ${_rows.length} registros. Descargá el CSV para el listado completo.</p>`:''}
+  </div>
+
+  <div style="padding:20px 48px;font-size:10px;color:#bbb;display:flex;justify-content:space-between;border-top:1px solid #f0f0f5;">
+    <span>Generado el ${new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'})} · ${emp.nombreCompleto||emp.nombre}</span>
+    <span>Control de Horarios — Sistema de Gestión de Asistencia</span>
+  </div>
+  </body></html>`;
+
+  const win=window.open('','_blank','width=1100,height=800');
+  if(!win){alert('Bloqueador de popups activo. Habilitá las ventanas emergentes para este sitio.');return;}
+  win.document.open(); win.document.write(html); win.document.close();
+  win.focus(); setTimeout(()=>win.print(),800);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  const ses=Auth.getAdmin()||Auth.getLider();
+  if(!ses){window.location.href='index.html';return;}
+  const empId='ospail';
+  aplicarMarca(); initSB(empId);
+  const emp=MARCA.empresas[empId];
+  document.getElementById('hdrMark').style.backgroundImage=`url('${emp.logos.favicon}')`;
+  document.getElementById('hdrNombre').innerHTML=`${emp.nombre} <span class="brand-gc">Horarios</span>`;
+  document.getElementById('fav').href=emp.logos.favicon;
+
+  // Poblar selector área
+  const{data}=await SB.from('areas').select('nombre').eq('activa',true).order('nombre');
+  const sel=document.getElementById('iArea');
+  (data||[]).forEach(a=>{const o=document.createElement('option');o.value=a.nombre;o.textContent=a.nombre;sel.appendChild(o);});
+
+  // Params desde URL
+  const params=new URLSearchParams(location.search);
+  if(params.get('per')){document.getElementById('iPer').value=params.get('per');onPerChange();}
+  if(params.get('area'))document.getElementById('iArea').value=params.get('area');
+  if(params.get('per')) generarInforme();
+});
+</script>
+</body>
+</html>
+
