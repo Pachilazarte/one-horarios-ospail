@@ -20,12 +20,12 @@ const EMPRESA = {
     url: "https://igumfuavaocnkbhfbpfu.supabase.co",
     key: "sb_publishable_zZYr1dfEQxPX9hFnn076qA_9n4ACsOi",
   },
-  admin: { user: "admin", pass: "ospail2024" },
+  admin: { user: "admin", pass: "ospail2026" },
 };
 
 const MARCA = {
   empresas: { ospail: EMPRESA },
-  superAdmin: { user: "superadmin", pass: "SuperAdmin2024!" },
+  superAdmin: { user: "superadmin", pass: "SuperAdmin2026!" },
   // Las áreas y colores vienen de la BD — no se hardcodean acá
   areaColors: {},   // se llena con cargarColoresAreas()
   areasCache: [],   // lista de áreas activas desde BD
